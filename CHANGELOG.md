@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- `glassy.transparent` and `glassy.backgroundColor` now hold: VS Code repaints every window with its theme colour after creating it, which made transparent windows solid again
+
 ## 0.3.0
 
 - `glassy.customCSS`: a stylesheet added to every window and updated live, with a multiline editor in the settings GUI

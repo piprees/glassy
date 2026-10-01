@@ -8,7 +8,7 @@ const BACKUP_SUFFIX = '.glassy-backup';
 const PATCH_VERSION_PREFIX = '/*glassy-patch:';
 
 /** Bump whenever the injected code changes, so installed patches get replaced. */
-export const PATCH_VERSION = 3;
+export const PATCH_VERSION = 4;
 
 /** Window settings, keyed as Electron names them. Absent keys leave VS Code's own value alone. */
 export interface WindowConfig {
@@ -61,7 +61,6 @@ globalThis.Glassy_BW=function(o){read();const w=win(),r={...(o||{})};for(const k
 try{Glassy_mod.registerHooks({load(u,c,n){const res=n(u,c);if(!u.endsWith("/out/mainImpl.js"))return res;const s=typeof res.source==="string"?res.source:Buffer.from(res.source).toString("utf8");return{format:res.format,shortCircuit:true,source:s.replace(/new ([A-Za-z_$][\\w$]*)\\.BrowserWindow\\(/g,"new (globalThis.Glassy_BW||$1.BrowserWindow)(")}}})}catch(e){}
 const LIVE={
 vibrancy:[null,(w,v)=>w.setVibrancy(v)],
-backgroundColor:[undefined,(w,v)=>w.setBackgroundColor(v)],
 hasShadow:[true,(w,v)=>w.setHasShadow(v)],
 windowButtonsVisible:[true,(w,v)=>w.setWindowButtonVisibility(v)],
 trafficLightPosition:[null,(w,v)=>w.setWindowButtonPosition(v)],
@@ -74,8 +73,11 @@ if(!reloaded&&st&&st.css===want)return;const next={css:want,key:null};cssState.s
 if(st&&st.key&&!reloaded)try{await wc.removeInsertedCSS(st.key)}catch(e){}
 if(want){const key=await wc.insertCSS(want);if(cssState.get(wc)===next)next.key=key;else try{await wc.removeInsertedCSS(key)}catch(e){}}}catch(e){}};
 const applied=new WeakMap(),primed=new WeakSet();
+const ownBg=()=>{const x=win();return x.backgroundColor||(x.transparent===true?"#00000000":null)};
+const guardBg=w=>{const set=w.setBackgroundColor.bind(w);w.setBackgroundColor=c=>set(ownBg()||c)};
 const apply=w=>{try{
-if(!primed.has(w)){primed.add(w);if(opacity()>=1)w.setOpacity(.999)}w.setOpacity(opacity());
+if(!primed.has(w)){primed.add(w);guardBg(w);if(opacity()>=1)w.setOpacity(.999)}w.setOpacity(opacity());
+if(ownBg())w.setBackgroundColor(ownBg());
 const want=win(),prev=applied.get(w)||{},next={};
 for(const k in LIVE){const[def,set]=LIVE[k];const has=k in want;if(has)next[k]=want[k];
 const changed=has?JSON.stringify(want[k])!==JSON.stringify(prev[k]):k in prev;

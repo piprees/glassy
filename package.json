@@ -2,7 +2,7 @@
   "name": "glassy",
   "displayName": "Glassy",
   "description": "Glass frame for VS Code on macOS",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "icon": "assets/icon.png",
   "publisher": "piprees",
   "license": "MIT",
