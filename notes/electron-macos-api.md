@@ -116,6 +116,10 @@ Verified against `docs/api/web-contents.md` at v43.7.7.
 
 ## Unresolved / needs follow-up
 
-- Whether a monkey-patched `BrowserWindow` export in the prepended ESM block is actually visible to VS Code's own `import { BrowserWindow } from 'electron'` further down the same `main.js` file. This is a Node.js module-interop question, not an Electron-docs question, and needs an empirical test against the real patched file rather than a doc lookup.
+- Construction interception, partly settled by `notes/spike-bw-intercept/` against Electron 43.7.3 (verified 2026-10-01):
+  - Replacing the export is impossible: `lib/common/define-properties.ts` at v43.7.3 defines each `electron` export as a getter with no setter and `configurable` left false.
+  - VS Code 1.140 builds windows in `out/mainImpl.js` as `new Jn.BrowserWindow(...)` (`Jn` is the default import of `electron`), and `out/main.js` loads it with `await import("./mainImpl.js")` after the Glassy block has run.
+  - So the block registers `module.registerHooks` (Node 24.21) with a load hook that rewrites `new X.BrowserWindow(` to `new (globalThis.Glassy_BW||X.BrowserWindow)(` in memory. Verified: the compiled function source carries the rewrite, and a control run without the hook does not. The file on disk is never written.
+  - Not yet verified: that the wrapper's options reach a real native window (needs a window server, which the agent sandbox blocks). Run the spike with the Electron 43.7.3 binary: it prints `RESULT` with `opacityFromNative: 0.5` if they do.
 - `api.context7.com` returned a bare `502` this session (while `context7.com` itself returned `200`), so the `ctx7` CLI could not be used at all; everything above came from `raw.githubusercontent.com` and `code.visualstudio.com` directly.
 - I did not locate a public VS Code wiki/doc page enumerating every `window.*` setting or every `argv.json` key as prose documentation — `github.com/microsoft/vscode/wiki/Available-Arguments` 404'd. The `argv.json` whitelist in §3 came from reading the installed binary's own `mainImpl.js`, which is stronger evidence than a doc page would have been, but it means I only know what the *current installed build* does, not what every past/future VS Code version has documented.
