@@ -6,12 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Glassy is a VS Code extension for macOS that enables adjustable window transparency. It works by patching VS Code's Electron main process (`out/main.js`) to inject opacity control code before windows are created.
 
+This is a fork, published as `piprees.glassy` and never to a registry. The dotfiles (`~/.dotfiles/shell/glassy.zsh`) build the committed HEAD into a .vsix and install it on bootstrap and `update`. `notes/electron-macos-api.md` maps the Electron 43 window APIs reachable from the patch.
+
 ## Commands
 
 ```bash
 npm run compile          # Production build (minified, no sourcemaps)
 npm run watch            # Development watch mode (sourcemaps enabled)
 npm run package          # Package as .vsix for local testing
+npm run install-local    # Package the working tree and install it into VS Code (reload windows after)
 ```
 
 There are no tests or linter configured — the TypeScript compiler serves as the primary static check.

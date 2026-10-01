@@ -4,15 +4,15 @@
   "description": "Glass frame for VS Code on macOS",
   "version": "0.1.6",
   "icon": "assets/icon.png",
-  "publisher": "optimistengineer",
+  "publisher": "piprees",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/optimistengineer/glassy"
+    "url": "https://github.com/piprees/glassy"
   },
-  "homepage": "https://github.com/optimistengineer/glassy#readme",
+  "homepage": "https://github.com/piprees/glassy#readme",
   "bugs": {
-    "url": "https://github.com/optimistengineer/glassy/issues"
+    "url": "https://github.com/piprees/glassy/issues"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -116,7 +116,8 @@
     "vscode:prepublish": "npm run compile",
     "compile": "node esbuild.js --production",
     "watch": "node esbuild.js --watch",
-    "package": "vsce package"
+    "package": "vsce package",
+    "install-local": "vsce package --out glassy.vsix && code --install-extension glassy.vsix --force"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",

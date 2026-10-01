@@ -239,6 +239,12 @@ export function activate(context: vscode.ExtensionContext) {
     const userEnabled = context.globalState.get<boolean>(ENABLED_KEY, false);
     safeAppendLine(`Patch: ${patched ? 'installed' : 'not installed'}, User opted in: ${userEnabled}`);
 
+    // globalState is per extension ID, so a patch written by another Glassy build
+    // arrives without the opt-in flag; without it, auto-repatch after updates never runs.
+    if (patched && !userEnabled) {
+        void context.globalState.update(ENABLED_KEY, true);
+    }
+
     currentAlpha = clampAlpha(
         vscode.workspace.getConfiguration('glassy').get<number>('alpha', DEFAULT_ALPHA)
     );
