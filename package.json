@@ -2,7 +2,7 @@
   "name": "glassy",
   "displayName": "Glassy",
   "description": "Glass frame for VS Code on macOS",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "icon": "assets/icon.png",
   "publisher": "piprees",
   "license": "MIT",
@@ -87,30 +87,190 @@
         "mac": "cmd+alt+x"
       }
     ],
-    "configuration": {
-      "title": "Glassy",
-      "properties": {
-        "glassy.alpha": {
-          "type": "integer",
-          "default": 240,
-          "minimum": 10,
-          "maximum": 255,
-          "description": "Window opacity level (10 = very transparent, 255 = fully opaque)"
+    "configuration": [
+      {
+        "title": "Opacity",
+        "properties": {
+          "glassy.alpha": {
+            "type": "integer",
+            "default": 240,
+            "minimum": 10,
+            "maximum": 255,
+            "description": "Window opacity level (10 = very transparent, 255 = fully opaque)",
+            "order": 0
+          },
+          "glassy.step": {
+            "type": "integer",
+            "default": 4,
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Step size for opacity increase/decrease",
+            "order": 1
+          },
+          "glassy.autoRestartAfterUpdate": {
+            "type": "boolean",
+            "default": false,
+            "description": "Automatically restart VS Code after an update to re-apply the transparency patch without prompting",
+            "order": 2
+          }
         },
-        "glassy.step": {
-          "type": "integer",
-          "default": 4,
-          "minimum": 1,
-          "maximum": 50,
-          "description": "Step size for opacity increase/decrease"
-        },
-        "glassy.autoRestartAfterUpdate": {
-          "type": "boolean",
-          "default": false,
-          "description": "Automatically restart VS Code after an update to re-apply the transparency patch without prompting"
+        "order": 0
+      },
+      {
+        "title": "Window",
+        "order": 1,
+        "properties": {
+          "glassy.vibrancy": {
+            "type": "string",
+            "enum": [
+              "none",
+              "titlebar",
+              "selection",
+              "menu",
+              "popover",
+              "sidebar",
+              "header",
+              "sheet",
+              "window",
+              "hud",
+              "fullscreen-ui",
+              "tooltip",
+              "content",
+              "under-window",
+              "under-page"
+            ],
+            "default": "none",
+            "markdownDescription": "macOS blur material behind the window. Only shows where the editor itself is see-through, so pair it with a lower `#glassy.alpha#` or `#glassy.transparent#`.",
+            "order": 0
+          },
+          "glassy.backgroundColor": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Window background colour, e.g. `#1e1e1e80`. Empty keeps VS Code's theme colour. VS Code resets it when the theme changes, and clearing it needs a restart.",
+            "order": 1
+          },
+          "glassy.hasShadow": {
+            "type": "boolean",
+            "default": true,
+            "description": "Draw the macOS window shadow.",
+            "order": 2
+          },
+          "glassy.windowButtonsVisible": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show the traffic light buttons (close, minimise, zoom).",
+            "order": 3
+          },
+          "glassy.trafficLightPositionX": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null,
+            "markdownDescription": "Traffic light buttons' distance from the left edge, in points. Used only when `#glassy.trafficLightPositionY#` is set too; empty keeps macOS's position.",
+            "order": 4
+          },
+          "glassy.trafficLightPositionY": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null,
+            "markdownDescription": "Traffic light buttons' distance from the top edge, in points. Used only when `#glassy.trafficLightPositionX#` is set too.",
+            "order": 5
+          },
+          "glassy.alwaysOnTop": {
+            "type": "string",
+            "enum": [
+              "off",
+              "normal",
+              "floating",
+              "torn-off-menu",
+              "modal-panel",
+              "main-menu",
+              "status",
+              "pop-up-menu",
+              "screen-saver"
+            ],
+            "default": "off",
+            "description": "Keep windows above other apps, at this macOS window level. Apple discourages anything above screen-saver.",
+            "order": 6
+          },
+          "glassy.visibleOnAllWorkspaces": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show windows on every Space.",
+            "order": 7
+          },
+          "glassy.hiddenInMissionControl": {
+            "type": "boolean",
+            "default": false,
+            "description": "Leave windows out of Mission Control.",
+            "order": 8
+          }
+        }
+      },
+      {
+        "title": "New windows (restart to apply)",
+        "order": 2,
+        "properties": {
+          "glassy.titleBarStyle": {
+            "type": "string",
+            "enum": [
+              "vscode",
+              "default",
+              "hidden",
+              "hiddenInset",
+              "customButtonsOnHover"
+            ],
+            "enumDescriptions": [
+              "Leave it to VS Code's window.titleBarStyle.",
+              "Native title bar.",
+              "No title bar; traffic lights stay.",
+              "No title bar; traffic lights inset further.",
+              "No title bar; traffic lights appear on hover (experimental in Electron)."
+            ],
+            "default": "vscode",
+            "markdownDescription": "Electron title bar style. With `#window.titleBarStyle#` set to `native`, VS Code draws no bar of its own, so anything but `vscode` or `default` puts the traffic lights over the content.",
+            "order": 0
+          },
+          "glassy.roundedCorners": {
+            "type": "boolean",
+            "default": true,
+            "description": "Round the window corners.",
+            "order": 1
+          },
+          "glassy.transparent": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Make the window itself transparent, so the desktop shows wherever nothing is painted. VS Code paints an opaque editor background, so this mostly matters with `#glassy.vibrancy#`.",
+            "order": 2
+          },
+          "glassy.visualEffectState": {
+            "type": "string",
+            "enum": [
+              "followWindow",
+              "active",
+              "inactive"
+            ],
+            "enumDescriptions": [
+              "Blur looks active only while the window is focused.",
+              "Blur always looks active.",
+              "Blur always looks inactive."
+            ],
+            "default": "followWindow",
+            "markdownDescription": "How `#glassy.vibrancy#` looks when the window is not focused.",
+            "order": 3
+          },
+          "glassy.tabbingIdentifier": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Group name for native macOS tabs. Empty keeps VS Code's own, which it sets when `#window.nativeTabs#` is on.",
+            "order": 4
+          }
         }
       }
-    }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

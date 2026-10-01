@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { installPatch, uninstallPatch, isPatched, writeConfig, removeConfig } from './patcher';
+import { installPatch, uninstallPatch, isPatched, writeConfig, removeConfig, installedPatchVersion, PATCH_VERSION, WindowConfig } from './patcher';
 
 const ENABLED_KEY = 'glassy.enabled';
 const PROMPT_SHOWN_KEY = 'glassy.promptShown';
@@ -41,9 +41,43 @@ function safeAppendLine(message: string) {
     }
 }
 
+/** Settings that only reach a window when it is created. */
+const NEW_WINDOW_SETTINGS = ['titleBarStyle', 'roundedCorners', 'transparent', 'visualEffectState', 'tabbingIdentifier'];
+
+/** Translates glassy.* settings into Electron's names, leaving out anything still at its default. */
+function readWindowConfig(): WindowConfig {
+    const c = vscode.workspace.getConfiguration('glassy');
+    const w: WindowConfig = {};
+
+    const vibrancy = c.get<string>('vibrancy', 'none');
+    if (vibrancy !== 'none') w.vibrancy = vibrancy;
+    const backgroundColor = c.get<string>('backgroundColor', '').trim();
+    if (backgroundColor) w.backgroundColor = backgroundColor;
+    if (!c.get<boolean>('hasShadow', true)) w.hasShadow = false;
+    if (!c.get<boolean>('windowButtonsVisible', true)) w.windowButtonsVisible = false;
+    const x = c.get<number | null>('trafficLightPositionX', null);
+    const y = c.get<number | null>('trafficLightPositionY', null);
+    if (typeof x === 'number' && typeof y === 'number') w.trafficLightPosition = { x, y };
+    const alwaysOnTop = c.get<string>('alwaysOnTop', 'off');
+    if (alwaysOnTop !== 'off') w.alwaysOnTop = alwaysOnTop;
+    if (c.get<boolean>('visibleOnAllWorkspaces', false)) w.visibleOnAllWorkspaces = true;
+    if (c.get<boolean>('hiddenInMissionControl', false)) w.hiddenInMissionControl = true;
+
+    const titleBarStyle = c.get<string>('titleBarStyle', 'vscode');
+    if (titleBarStyle !== 'vscode') w.titleBarStyle = titleBarStyle;
+    if (!c.get<boolean>('roundedCorners', true)) w.roundedCorners = false;
+    if (c.get<boolean>('transparent', false)) w.transparent = true;
+    const visualEffectState = c.get<string>('visualEffectState', 'followWindow');
+    if (visualEffectState !== 'followWindow') w.visualEffectState = visualEffectState;
+    const tabbingIdentifier = c.get<string>('tabbingIdentifier', '').trim();
+    if (tabbingIdentifier) w.tabbingIdentifier = tabbingIdentifier;
+
+    return w;
+}
+
 function writeConfigSafe(alpha: number, reason: string): boolean {
     try {
-        writeConfig(alpha);
+        writeConfig({ alpha, window: readWindowConfig() });
         lastConfigWriteError = undefined;
         return true;
     } catch (error) {
@@ -275,7 +309,24 @@ export function activate(context: vscode.ExtensionContext) {
         } else {
             vscode.window.showErrorMessage(`Glassy: Failed to re-apply patch after update — ${result.message}`);
         }
-    } else if (patched && currentAlpha < 255) {
+    } else if (userEnabled && patched && installedPatchVersion() < PATCH_VERSION) {
+        safeAppendLine(`Patch v${installedPatchVersion()} is older than v${PATCH_VERSION}. Replacing...`);
+        const result = installPatch();
+        safeAppendLine(`Patch upgrade: ${result.message}`);
+        if (result.success) {
+            writeConfigSafe(currentAlpha, 'patch upgrade');
+            vscode.window.showInformationMessage(
+                'Glassy: Patch updated with new window settings. Restart VS Code to use them.',
+                'Restart Now', 'Later'
+            ).then(choice => {
+                if (choice === 'Restart Now') {
+                    void restartVSCode();
+                }
+            });
+        } else {
+            vscode.window.showErrorMessage(`Glassy: Failed to update the patch — ${result.message}`);
+        }
+    } else if (patched) {
         writeConfigSafe(currentAlpha, 'startup restore');
     }
 
@@ -371,6 +422,22 @@ export function activate(context: vscode.ExtensionContext) {
     // Config changes from Settings UI only
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
+            const windowSettingChanged = e.affectsConfiguration('glassy') &&
+                !['alpha', 'step', 'autoRestartAfterUpdate'].some(k => e.affectsConfiguration(`glassy.${k}`));
+            if (windowSettingChanged && isPatched()) {
+                writeConfigSafe(currentAlpha, 'window settings change');
+                if (NEW_WINDOW_SETTINGS.some(k => e.affectsConfiguration(`glassy.${k}`))) {
+                    vscode.window.showInformationMessage(
+                        'Glassy: That setting applies to windows opened from now on. Restart VS Code to apply it everywhere.',
+                        'Restart Now', 'Later'
+                    ).then(choice => {
+                        if (choice === 'Restart Now') {
+                            void restartVSCode();
+                        }
+                    });
+                }
+            }
+
             if (e.affectsConfiguration('glassy.alpha')) {
                 const newAlpha = clampAlpha(
                     vscode.workspace.getConfiguration('glassy').get<number>('alpha', DEFAULT_ALPHA)

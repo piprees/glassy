@@ -65,6 +65,21 @@ You can also:
 | `glassy.alpha` | `240` | Opacity level (10 = very transparent, 255 = fully opaque) |
 | `glassy.step` | `4` | Step size per keypress |
 | `glassy.autoRestartAfterUpdate` | `false` | Automatically restart VS Code after an update without prompting |
+| `glassy.vibrancy` | `none` | macOS blur material behind the window |
+| `glassy.backgroundColor` | empty | Window background colour; empty keeps the theme's |
+| `glassy.hasShadow` | `true` | Window shadow |
+| `glassy.windowButtonsVisible` | `true` | Traffic light buttons |
+| `glassy.trafficLightPositionX` / `Y` | empty | Traffic light position in points |
+| `glassy.alwaysOnTop` | `off` | Keep windows above other apps, at a macOS window level |
+| `glassy.visibleOnAllWorkspaces` | `false` | Show windows on every Space |
+| `glassy.hiddenInMissionControl` | `false` | Leave windows out of Mission Control |
+| `glassy.titleBarStyle` | `vscode` | Electron title bar style (new windows) |
+| `glassy.roundedCorners` | `true` | Rounded window corners (new windows) |
+| `glassy.transparent` | `false` | Transparent window (new windows) |
+| `glassy.visualEffectState` | `followWindow` | Vibrancy look when unfocused (new windows) |
+| `glassy.tabbingIdentifier` | empty | Native tab group name (new windows) |
+
+Settings marked "new windows" only reach a window when it is created, so restart VS Code to apply them everywhere.
 
 ### Recommended Values
 

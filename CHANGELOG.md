@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Window settings beyond opacity: vibrancy, background colour, shadow, traffic lights, always-on-top, Spaces and Mission Control, applied live
+- Settings that Electron only accepts at window creation (title bar style, rounded corners, transparency, vibrancy state, tab group) reach new windows
+- An older installed patch is replaced automatically, with a restart prompt
+
 ## 0.1.6
 
 - Fixed extension icon not displaying on Open VSX and compatible editors (Cursor, VSCodium, Antigravity, Windsurf)

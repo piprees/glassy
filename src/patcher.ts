@@ -5,25 +5,79 @@ import * as os from 'os';
 const PATCH_TAG_START = '// [Glassy:START]';
 const PATCH_TAG_END = '// [Glassy:END]';
 const BACKUP_SUFFIX = '.glassy-backup';
+const PATCH_VERSION_PREFIX = '/*glassy-patch:';
+
+/** Bump whenever the injected code changes, so installed patches get replaced. */
+export const PATCH_VERSION = 2;
+
+/** Window settings, keyed as Electron names them. Absent keys leave VS Code's own value alone. */
+export interface WindowConfig {
+    vibrancy?: string | null;
+    backgroundColor?: string;
+    hasShadow?: boolean;
+    windowButtonsVisible?: boolean;
+    trafficLightPosition?: { x: number; y: number } | null;
+    alwaysOnTop?: string | false;
+    visibleOnAllWorkspaces?: boolean;
+    hiddenInMissionControl?: boolean;
+    titleBarStyle?: string;
+    roundedCorners?: boolean;
+    transparent?: boolean;
+    visualEffectState?: string;
+    tabbingIdentifier?: string;
+}
+
+export interface GlassyConfig {
+    alpha: number;
+    window: WindowConfig;
+}
 
 /**
- * Injection for main.js (Electron main process).
- * Self-contained: reads config, watches for changes,
- * applies BrowserWindow.setOpacity(). No renderer patch or IPC needed.
+ * Injection for main.js (Electron main process). Runs before VS Code's own code:
+ * - opacity and the live window settings are applied to every window and re-applied
+ *   when ~/.glassy-config.json changes (500ms poll);
+ * - construction-only settings reach `new BrowserWindow(opts)` through a module load
+ *   hook that rewrites that call in out/mainImpl.js in memory. The file on disk is
+ *   never written.
  */
-function getMainProcessInjection(configPath: string): string {
+export function getMainProcessInjection(configPath: string): string {
     const escaped = configPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    // main.js uses ESM — use dynamic import() which works anywhere in the file
-    // fs.watchFile interval at 500ms to balance responsiveness and resource usage
-    // Static imports are hoisted to module top — resolved BEFORE any code runs.
-    // This means our browser-window-created listener registers before VS Code creates windows.
-    // Use unique Glassy_ prefixes to avoid variable collision crashes if other patches exist.
-    // Prime each window once at near-opaque opacity to avoid the first visible macOS flicker
-    // when transitioning from fully opaque to transparent with setOpacity().
+    // Static imports are hoisted, so the listener registers before VS Code creates
+    // windows. Glassy_ prefixes avoid collisions with VS Code's own top-level names.
+    // Windows are primed at .999 once to avoid a macOS flicker on the first setOpacity.
     return `
 ${PATCH_TAG_START}
-import{app as Glassy_app,BrowserWindow as Glassy_BW}from"electron";import{readFileSync as Glassy_rf,existsSync as Glassy_ex,watchFile as Glassy_wf}from"fs";
-;(()=>{try{const Glassy_cp='${escaped}';let Glassy_o=1;const Glassy_seen=new WeakSet(),Glassy_apply=w=>{try{if(!Glassy_seen.has(w)){Glassy_seen.add(w);if(Glassy_o>=1)w.setOpacity(.999)}w.setOpacity(Glassy_o)}catch(e){}};const Glassy_read=()=>{try{if(!Glassy_ex(Glassy_cp))return;const c=JSON.parse(Glassy_rf(Glassy_cp,"utf8"));if(typeof c.alpha==="number"&&c.alpha>=10&&c.alpha<=255)Glassy_o=c.alpha/255.0}catch(e){}};Glassy_read();Glassy_app.on("browser-window-created",(e,w)=>{Glassy_apply(w)});const Glassy_applyAll=()=>{Glassy_read();Glassy_BW.getAllWindows().forEach(Glassy_apply)};Glassy_app.whenReady().then(()=>{Glassy_applyAll();Glassy_wf(Glassy_cp,{interval:500},Glassy_applyAll)})}catch(e){}})();
+${PATCH_VERSION_PREFIX}${PATCH_VERSION}*/
+import{app as Glassy_app,BrowserWindow as Glassy_BWC}from"electron";import{readFileSync as Glassy_rf,existsSync as Glassy_ex,watchFile as Glassy_wf}from"fs";import*as Glassy_mod from"module";
+;(()=>{try{
+const cp='${escaped}';let cfg={};
+const read=()=>{try{cfg=Glassy_ex(cp)?(JSON.parse(Glassy_rf(cp,"utf8"))||{}):{}}catch(e){}};
+const win=()=>cfg.window&&typeof cfg.window==="object"?cfg.window:{};
+const opacity=()=>typeof cfg.alpha==="number"&&cfg.alpha>=10&&cfg.alpha<=255?cfg.alpha/255:1;
+const CTOR=["titleBarStyle","roundedCorners","transparent","visualEffectState","tabbingIdentifier","vibrancy","backgroundColor","hasShadow"];
+globalThis.Glassy_BW=function(o){read();const w=win(),r={...(o||{})};for(const k of CTOR)if(k in w&&w[k]!==null)r[k]=w[k];if(w.transparent===true&&!w.backgroundColor)r.backgroundColor="#00000000";return new Glassy_BWC(r)};
+try{Glassy_mod.registerHooks({load(u,c,n){const res=n(u,c);if(!u.endsWith("/out/mainImpl.js"))return res;const s=typeof res.source==="string"?res.source:Buffer.from(res.source).toString("utf8");return{format:res.format,shortCircuit:true,source:s.replace(/new ([A-Za-z_$][\\w$]*)\\.BrowserWindow\\(/g,"new (globalThis.Glassy_BW||$1.BrowserWindow)(")}}})}catch(e){}
+const LIVE={
+vibrancy:[null,(w,v)=>w.setVibrancy(v)],
+backgroundColor:[undefined,(w,v)=>w.setBackgroundColor(v)],
+hasShadow:[true,(w,v)=>w.setHasShadow(v)],
+windowButtonsVisible:[true,(w,v)=>w.setWindowButtonVisibility(v)],
+trafficLightPosition:[null,(w,v)=>w.setWindowButtonPosition(v)],
+alwaysOnTop:[false,(w,v)=>v?w.setAlwaysOnTop(true,v):w.setAlwaysOnTop(false)],
+visibleOnAllWorkspaces:[false,(w,v)=>w.setVisibleOnAllWorkspaces(v,{skipTransformProcessType:true})],
+hiddenInMissionControl:[false,(w,v)=>w.setHiddenInMissionControl(v)]};
+const applied=new WeakMap(),primed=new WeakSet();
+const apply=w=>{try{
+if(!primed.has(w)){primed.add(w);if(opacity()>=1)w.setOpacity(.999)}w.setOpacity(opacity());
+const want=win(),prev=applied.get(w)||{},next={};
+for(const k in LIVE){const[def,set]=LIVE[k];const has=k in want;if(has)next[k]=want[k];
+const changed=has?JSON.stringify(want[k])!==JSON.stringify(prev[k]):k in prev;
+if(!changed)continue;const v=has?want[k]:def;if(v===undefined)continue;try{set(w,v)}catch(e){}}
+applied.set(w,next)}catch(e){}};
+read();Glassy_app.on("browser-window-created",(e,w)=>apply(w));
+const applyAll=()=>{read();Glassy_BWC.getAllWindows().forEach(apply)};
+Glassy_app.whenReady().then(()=>{applyAll();Glassy_wf(cp,{interval:500},applyAll)})
+}catch(e){}})();
 ${PATCH_TAG_END}`;
 }
 
@@ -97,6 +151,19 @@ export function isPatched(): boolean {
         return content.indexOf(PATCH_TAG_END, startIdx + PATCH_TAG_START.length) !== -1;
     } catch {
         return false;
+    }
+}
+
+/** Version of the installed patch; 1 for patches that predate the version marker, 0 if unpatched. */
+export function installedPatchVersion(): number {
+    try {
+        const content = fs.readFileSync(getMainJsPath(), 'utf8');
+        if (!content.includes(PATCH_TAG_START)) return 0;
+        const idx = content.indexOf(PATCH_VERSION_PREFIX);
+        if (idx === -1) return 1;
+        return parseInt(content.substring(idx + PATCH_VERSION_PREFIX.length), 10) || 1;
+    } catch {
+        return 0;
     }
 }
 
@@ -213,10 +280,10 @@ function removePatchFromContent(content: string): string {
 }
 
 /** Atomic write — write to temp file then rename to avoid corruption from concurrent writes */
-export function writeConfig(alpha: number): void {
+export function writeConfig(config: GlassyConfig): void {
     const configPath = getConfigPath();
     const tmpPath = configPath + '.tmp';
-    fs.writeFileSync(tmpPath, JSON.stringify({ alpha }), 'utf8');
+    fs.writeFileSync(tmpPath, JSON.stringify(config), 'utf8');
 
     try {
         fs.renameSync(tmpPath, configPath);
