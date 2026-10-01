@@ -78,6 +78,7 @@ You can also:
 | `glassy.transparent` | `false` | Transparent window (new windows) |
 | `glassy.visualEffectState` | `followWindow` | Vibrancy look when unfocused (new windows) |
 | `glassy.tabbingIdentifier` | empty | Native tab group name (new windows) |
+| `glassy.customCSS` | empty | CSS added to every window, applied live; a pasted `<style>` tag works too |
 
 Settings marked "new windows" only reach a window when it is created, so restart VS Code to apply them everywhere.
 

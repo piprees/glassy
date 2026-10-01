@@ -8,7 +8,7 @@ const BACKUP_SUFFIX = '.glassy-backup';
 const PATCH_VERSION_PREFIX = '/*glassy-patch:';
 
 /** Bump whenever the injected code changes, so installed patches get replaced. */
-export const PATCH_VERSION = 2;
+export const PATCH_VERSION = 3;
 
 /** Window settings, keyed as Electron names them. Absent keys leave VS Code's own value alone. */
 export interface WindowConfig {
@@ -30,6 +30,8 @@ export interface WindowConfig {
 export interface GlassyConfig {
     alpha: number;
     window: WindowConfig;
+    /** Stylesheet inserted into every window's page; empty inserts nothing. */
+    css: string;
 }
 
 /**
@@ -66,6 +68,11 @@ trafficLightPosition:[null,(w,v)=>w.setWindowButtonPosition(v)],
 alwaysOnTop:[false,(w,v)=>v?w.setAlwaysOnTop(true,v):w.setAlwaysOnTop(false)],
 visibleOnAllWorkspaces:[false,(w,v)=>w.setVisibleOnAllWorkspaces(v,{skipTransformProcessType:true})],
 hiddenInMissionControl:[false,(w,v)=>w.setHiddenInMissionControl(v)]};
+const cssState=new WeakMap();
+const applyCss=async(wc,reloaded)=>{try{const want=typeof cfg.css==="string"?cfg.css:"";const st=cssState.get(wc);
+if(!reloaded&&st&&st.css===want)return;const next={css:want,key:null};cssState.set(wc,next);
+if(st&&st.key&&!reloaded)try{await wc.removeInsertedCSS(st.key)}catch(e){}
+if(want){const key=await wc.insertCSS(want);if(cssState.get(wc)===next)next.key=key;else try{await wc.removeInsertedCSS(key)}catch(e){}}}catch(e){}};
 const applied=new WeakMap(),primed=new WeakSet();
 const apply=w=>{try{
 if(!primed.has(w)){primed.add(w);if(opacity()>=1)w.setOpacity(.999)}w.setOpacity(opacity());
@@ -73,8 +80,8 @@ const want=win(),prev=applied.get(w)||{},next={};
 for(const k in LIVE){const[def,set]=LIVE[k];const has=k in want;if(has)next[k]=want[k];
 const changed=has?JSON.stringify(want[k])!==JSON.stringify(prev[k]):k in prev;
 if(!changed)continue;const v=has?want[k]:def;if(v===undefined)continue;try{set(w,v)}catch(e){}}
-applied.set(w,next)}catch(e){}};
-read();Glassy_app.on("browser-window-created",(e,w)=>apply(w));
+applied.set(w,next);applyCss(w.webContents,false)}catch(e){}};
+read();Glassy_app.on("browser-window-created",(e,w)=>{w.webContents.on("did-finish-load",()=>applyCss(w.webContents,true));apply(w)});
 const applyAll=()=>{read();Glassy_BWC.getAllWindows().forEach(apply)};
 Glassy_app.whenReady().then(()=>{applyAll();Glassy_wf(cp,{interval:500},applyAll)})
 }catch(e){}})();

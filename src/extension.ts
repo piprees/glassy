@@ -75,9 +75,16 @@ function readWindowConfig(): WindowConfig {
     return w;
 }
 
+/** glassy.customCSS, accepting a pasted <style> tag as well as bare CSS. */
+function readCustomCss(): string {
+    return vscode.workspace.getConfiguration('glassy').get<string>('customCSS', '')
+        .replace(/<\/?style[^>]*>/gi, '')
+        .trim();
+}
+
 function writeConfigSafe(alpha: number, reason: string): boolean {
     try {
-        writeConfig({ alpha, window: readWindowConfig() });
+        writeConfig({ alpha, window: readWindowConfig(), css: readCustomCss() });
         lastConfigWriteError = undefined;
         return true;
     } catch (error) {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- `glassy.customCSS`: a stylesheet added to every window and updated live, with a multiline editor in the settings GUI
+
 ## 0.2.0
 
 - Window settings beyond opacity: vibrancy, background colour, shadow, traffic lights, always-on-top, Spaces and Mission Control, applied live
